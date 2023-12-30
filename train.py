@@ -30,7 +30,7 @@ def main(argv):
 	# Get cpu or gpu device for training.
 	device = "cuda" if torch.cuda.is_available() else "cpu"
 	print(f"Using {device} device")
-	torch.cuda.empty_cache()
+	# torch.cuda.empty_cache()
 	time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
 	if task == 'segmentation' and (step == 'train' or step == 'training'):
@@ -99,6 +99,7 @@ def segmentation_test(data_reader, device, time):
 
 	output = pred.cpu().detach().numpy()
 	output = np.argmax(output, axis=1)
+	print(np.max(output))
 	output = output[:, :, :, None]
 	output = output * 255
 	for i,img in enumerate(output):
