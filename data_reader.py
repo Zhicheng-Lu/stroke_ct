@@ -42,7 +42,7 @@ class DataReader():
 
 		# Randomly find batches for hemorrhagic and ischemic stroke
 		batches = {'Hemorrhagic': random.sample(self.hemorrhagic_patients, int(self.batch_size / 2)), 'Ischemic': random.sample(self.ischemic_patients, int(self.batch_size / 2))}
-		batches = {'Hemorrhagic': ['000'], 'Ischemic': []}
+		batches = {'Hemorrhagic': ['049'], 'Ischemic': []}
 		for stroke_type in ['Hemorrhagic', 'Ischemic']:
 			for batch in batches[stroke_type]:
 				# Find all image files in the directory, and sort
