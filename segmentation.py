@@ -4,23 +4,23 @@ import numpy as np
 import torch
 from torch import nn
 from data_reader import DataReader
-from models.segmentation import Segmentation
 from torch.cuda import amp
+from models.segmentation import Segmentation
 
 
 def segmentation_train(data_reader, device, time):
 	entropy_loss_fn = nn.CrossEntropyLoss()
 	dice_loss_fn = Diceloss()
-	model = Segmentation().to(device)
+	model = Segmentation(data_reader.f_size).to(device)
 
 	optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-5)
 	scaler = torch.cuda.amp.GradScaler(enabled=amp)
 
-	for epoch in range(data_reader.epochs):
+	for epoch in range(data_reader.segmentation_epochs):
 		patient_range, cts, masks = data_reader.read_in_batch('segmentation', 'train')
 		cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
 		masks = torch.from_numpy(masks)
-		for iteration in range(data_reader.iterations):
+		for iteration in range(data_reader.segmentation_iterations):
 			model.train()
 			optimizer.zero_grad(set_to_none=True)
 			cts = cts.to(device=device, dtype=torch.float)
@@ -48,7 +48,7 @@ def segmentation_test(data_reader, device, time):
 	entropy_loss_fn = nn.CrossEntropyLoss()
 	dice_loss_fn = Diceloss()
 
-	model = Segmentation()
+	model = Segmentation(data_reader.f_size)
 	model.load_state_dict(torch.load("checkpoints/segmentation_model.pt"), strict=False)
 	model = model.to(device)
 
@@ -84,21 +84,6 @@ def segmentation_test(data_reader, device, time):
 class Diceloss(torch.nn.Module):
 	def __init__(self):
 		super(Diceloss, self).__init__()
-
-	# def forward(self, pred, masks):
-	# 	pred_softmax = nn.functional.softmax(pred, dim=1).float()
-	# 	pred_masks = pred_softmax[:,1,:,:]
-	# 	overlap = pred_masks * masks
-	# 	area_pred = torch.sum(pred_masks, dim=(1,2))
-	# 	area_masks = torch.sum(masks, dim=(1,2))
-	# 	area_overlap = torch.sum(overlap, dim=(1,2))
-
-	# 	loss = 1 - (2 * area_overlap + 1) / (area_pred + area_masks + 1)
-	# 	for i,_loss in enumerate(loss):
-	# 		print(i, _loss)
-	# 	loss = torch.mean(loss)
-	# 	print(loss)
-	# 	return loss
 
 	def forward(self, pred, masks):
 		pred_softmax = nn.functional.softmax(pred, dim=1).float()

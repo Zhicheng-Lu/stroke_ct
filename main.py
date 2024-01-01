@@ -4,6 +4,7 @@ import torch
 from datetime import datetime
 from data_reader import DataReader
 from segmentation import segmentation_train, segmentation_test, Diceloss
+from classification import classification_train
 
 
 def main(argv):
@@ -36,7 +37,8 @@ def main(argv):
 		segmentation_train(data_reader, device, time)
 	if task == 'segmentation' and (step == 'test' or step == 'testing'):
 		segmentation_test(data_reader, device, time)
-
+	if task == 'classification' and (step == 'train' or step == 'training'):
+		classification_train(data_reader, device, time)
 
 
 

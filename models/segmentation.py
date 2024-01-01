@@ -1,12 +1,10 @@
 from torch import nn
-from torchvision.transforms import ToTensor
 import torch
-import numpy as np
 
 class Segmentation(nn.Module):
-	def __init__(self):
+	def __init__(self, f_size):
 		super(Segmentation, self).__init__()
-		self.f_size = 64
+		self.f_size = f_size
 		self.down1 = nn.Sequential(
 			nn.Conv2d(in_channels=1, out_channels=self.f_size, kernel_size=(3,3), padding=(1,1)),
 			nn.ReLU(),
