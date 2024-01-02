@@ -33,7 +33,7 @@ class DataReader():
 		if task == 'segmentation' and (step == 'train' or step == 'training' or step == 'test' or step == 'testing'):
 			return self.read_in_batch_segmentation()
 		if task == 'classification' and (step == 'train' or step == 'training' or step == 'test' or step == 'testing'):
-			return self.read_in_batch_segmentation()
+			return self.read_in_batch_classification()
 
 
 	def read_in_batch_segmentation(self):
@@ -94,3 +94,56 @@ class DataReader():
 						batches_masks.append(mask)
 
 		return patient_range, np.array(batches_imgs), np.array(batches_masks)
+
+
+
+	def read_in_batch_classification(self):
+		patient_range = []
+		batches_imgs = []
+		batches_labels = []
+
+		# Data
+		hemorrhagic_dir = self.config['Data']['segmentation_hemorrhagic_dir']
+		hemorrhagic_patients = os.listdir(os.path.join(hemorrhagic_dir, 'mask'))
+		ischemic_dir = self.config['Data']['segmentation_ischemic_dir']
+		ischemic_patients = os.listdir(os.path.join(ischemic_dir, 'mask'))
+		dirs = {'Hemorrhagic': hemorrhagic_dir, 'Ischemic': ischemic_dir}
+
+		# Randomly find batches for hemorrhagic and ischemic stroke
+		batches = {'Hemorrhagic': random.sample(hemorrhagic_patients, int(self.batch_size / 2)), 'Ischemic': random.sample(ischemic_patients, int(self.batch_size / 2))}
+		# batches = {'Hemorrhagic': ['049'], 'Ischemic': []}
+		for stroke_type in ['Hemorrhagic', 'Ischemic']:
+			for batch in batches[stroke_type]:
+				# Find all image files in the directory, and sort
+				img_dir = os.path.join(dirs[stroke_type], 'images', batch)
+				img_files = os.listdir(img_dir)
+				img_files = [f for f in img_files if os.path.isfile(os.path.join(dirs[stroke_type], 'images', batch, f))]
+				img_files = sorted(img_files, key=lambda s: int(re.sub(r'\D', '', s) or 0))
+				# Record number of slices for each patient
+				if len(patient_range) == 0:
+					patient_range.append(len(img_files))
+				else:
+					patient_range.append(patient_range[-1] + len(img_files))
+				
+				# For each image file in the directory
+				for i,img_file in enumerate(img_files):
+					img_file_path = os.path.join(dirs[stroke_type], 'images', batch, img_file)
+					img = cv2.imread(img_file_path)
+					# Resize to 512*512
+					img = cv2.resize(img, (self.height, self.width))
+					# Convert to greyscale
+					img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+					# Add extra channel
+					img = np.reshape(img, (self.height, self.width, 1))
+					
+					batches_imgs.append(img / 255)
+
+				# Read labels
+				if stroke_type == 'Normal':
+					batches_labels.append(0)
+				elif stroke_type == 'Ischemic':
+					batches_labels.append(1)
+				else:
+					batches_labels.append(2)
+
+		return patient_range, np.array(batches_imgs), np.array(batches_labels)
