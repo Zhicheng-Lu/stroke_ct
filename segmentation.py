@@ -18,6 +18,12 @@ def segmentation_train(data_reader, device, time):
 
 	for epoch in range(data_reader.segmentation_epochs):
 		patient_range, cts, masks = data_reader.read_in_batch('segmentation', 'train')
+		cts = np.resize(cts, (40, 256, 256, 1))
+		masks = np.resize(masks, (40, 256, 256))
+		for i in range(len(cts)):
+			cv2.imwrite(f'test/{i}_ct.jpg', cts[i]*255)
+			cv2.imwrite(f'test/{i}_mask.jpg', masks[i]*255)
+		return
 		cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
 		masks = torch.from_numpy(masks)
 		for iteration in range(data_reader.segmentation_iterations):

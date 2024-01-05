@@ -43,20 +43,20 @@ class DataReader():
 
 		# Data
 		hemorrhagic_dir = self.config['Data']['segmentation_hemorrhagic_dir']
-		hemorrhagic_patients = os.listdir(os.path.join(hemorrhagic_dir, 'mask'))
+		# hemorrhagic_patients = os.listdir(os.path.join(hemorrhagic_dir, 'mask'))
 		ischemic_dir = self.config['Data']['segmentation_ischemic_dir']
-		ischemic_patients = os.listdir(os.path.join(ischemic_dir, 'mask'))
+		# ischemic_patients = os.listdir(os.path.join(ischemic_dir, 'mask'))
 		dirs = {'Hemorrhagic': hemorrhagic_dir, 'Ischemic': ischemic_dir}
 
 		# Randomly find batches for hemorrhagic and ischemic stroke
-		batches = {'Hemorrhagic': random.sample(hemorrhagic_patients, int(self.batch_size / 2)), 'Ischemic': random.sample(ischemic_patients, int(self.batch_size / 2))}
-		# batches = {'Hemorrhagic': ['049'], 'Ischemic': []}
+		# batches = {'Hemorrhagic': random.sample(hemorrhagic_patients, int(self.batch_size / 2)), 'Ischemic': random.sample(ischemic_patients, int(self.batch_size / 2))}
+		batches = {'Hemorrhagic': [], 'Ischemic': [('AISD', '0091458')]}
 		for stroke_type in ['Hemorrhagic', 'Ischemic']:
 			for batch in batches[stroke_type]:
 				# Find all image files in the directory, and sort
-				img_dir = os.path.join(dirs[stroke_type], 'images', batch)
+				img_dir = os.path.join(dirs[stroke_type], batch[0], 'images', batch[1])
 				img_files = os.listdir(img_dir)
-				img_files = [f for f in img_files if os.path.isfile(os.path.join(dirs[stroke_type], 'images', batch, f))]
+				img_files = [f for f in img_files if os.path.isfile(os.path.join(img_dir, f))]
 				img_files = sorted(img_files, key=lambda s: int(re.sub(r'\D', '', s) or 0))
 				# Record number of slices for each patient
 				if len(patient_range) == 0:
@@ -66,7 +66,7 @@ class DataReader():
 				
 				# For each image file in the directory
 				for i,img_file in enumerate(img_files):
-					img_file_path = os.path.join(dirs[stroke_type], 'images', batch, img_file)
+					img_file_path = os.path.join(img_dir, img_file)
 					img = cv2.imread(img_file_path)
 					# Resize to 512*512
 					img = cv2.resize(img, (self.height, self.width))
@@ -78,12 +78,7 @@ class DataReader():
 					batches_imgs.append(img / 255)
 
 					# Read masks
-					basename = os.path.splitext(img_file)[0]
-					extension = os.path.splitext(img_file)[1]
-					if stroke_type == 'Hemorrhagic':
-						mask_file_path = os.path.join(dirs[stroke_type], 'mask', batch, '{}_HGE_Seg{}'.format(basename, extension))
-					else:
-						mask_file_path = os.path.join(dirs[stroke_type], 'mask', batch, img_file)
+					mask_file_path = os.path.join(dirs[stroke_type], batch[0], 'masks', batch[1], img_file)
 					if not os.path.exists(mask_file_path):
 						batches_masks.append(np.zeros((self.height, self.width)))
 					else:
