@@ -29,14 +29,14 @@ class DataReader():
 		self.batch_size = int(config['Train']['batch_size'])
 
 
-	def read_in_batch(self, task, step):
+	def read_in_batch(self, task, step, epoch):
 		if task == 'segmentation' and (step == 'train' or step == 'training' or step == 'test' or step == 'testing'):
-			return self.read_in_batch_segmentation()
+			return self.read_in_batch_segmentation(epoch)
 		if task == 'classification' and (step == 'train' or step == 'training' or step == 'test' or step == 'testing'):
 			return self.read_in_batch_classification()
 
 
-	def read_in_batch_segmentation(self):
+	def read_in_batch_segmentation(self, epoch):
 		patient_range = []
 		batches_imgs = []
 		batches_masks = []
@@ -49,20 +49,29 @@ class DataReader():
 		dirs = {'Hemorrhagic': hemorrhagic_dir, 'Ischemic': ischemic_dir}
 
 		# Randomly find batches for hemorrhagic and ischemic stroke
-		# batches = {'Hemorrhagic': random.sample(hemorrhagic_patients, int(self.batch_size / 2)), 'Ischemic': random.sample(ischemic_patients, int(self.batch_size / 2))}
-		batches = {'Hemorrhagic': [], 'Ischemic': [('AISD', '0091458')]}
+		batches = {}
 		for stroke_type in ['Hemorrhagic', 'Ischemic']:
-			for batch in batches[stroke_type]:
+			datasets = os.listdir(dirs[stroke_type])
+			dataset = datasets[random.randint(0, len(datasets)-1)]
+			patients = os.listdir(os.path.join(dirs[stroke_type], dataset, 'images'))
+			patients = random.sample(patients, int(self.batch_size / 2))
+			batches[stroke_type] = (dataset, patients)
+
+
+		for stroke_type in ['Hemorrhagic', 'Ischemic']:
+			for batch in batches[stroke_type][1]:
 				# Find all image files in the directory, and sort
-				img_dir = os.path.join(dirs[stroke_type], batch[0], 'images', batch[1])
+				datasets_dir = dirs[stroke_type]
+				dataset = batches[stroke_type][0]
+				img_dir = os.path.join(datasets_dir, dataset, 'images', batch)
 				img_files = os.listdir(img_dir)
 				img_files = [f for f in img_files if os.path.isfile(os.path.join(img_dir, f))]
 				img_files = sorted(img_files, key=lambda s: int(re.sub(r'\D', '', s) or 0))
 				# Record number of slices for each patient
 				if len(patient_range) == 0:
-					patient_range.append(len(img_files))
+					patient_range.append((0, len(img_files)))
 				else:
-					patient_range.append(patient_range[-1] + len(img_files))
+					patient_range.append((patient_range[-1][1], patient_range[-1][1] + len(img_files)))
 				
 				# For each image file in the directory
 				for i,img_file in enumerate(img_files):
@@ -78,7 +87,7 @@ class DataReader():
 					batches_imgs.append(img / 255)
 
 					# Read masks
-					mask_file_path = os.path.join(dirs[stroke_type], batch[0], 'masks', batch[1], img_file)
+					mask_file_path = os.path.join(datasets_dir, dataset, 'masks', batch, img_file)
 					if not os.path.exists(mask_file_path):
 						batches_masks.append(np.zeros((self.height, self.width)))
 					else:

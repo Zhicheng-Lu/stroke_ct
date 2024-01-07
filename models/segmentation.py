@@ -95,7 +95,7 @@ class Segmentation(nn.Module):
 		)
 		
 
-	def forward(self, device, patient_range, cts):
+	def forward(self, device, cts):
 		down1 = self.down1(cts)
 		down2 = self.down2(down1)
 		down3 = self.down3(down2)
@@ -110,8 +110,8 @@ class Segmentation(nn.Module):
 		up4 = self.up4(up3_cat)
 		up4_cat = torch.cat((down1, up4), dim=1)
 		# output = self.conv(up4_cat)
-		gnn1 = self.GNN_layer(device, patient_range, up4_cat, self.aggr_1, self.update_1)
-		gnn2 = self.GNN_layer(device, patient_range, gnn1, self.aggr_2, self.update_2)
+		gnn1 = self.GNN_layer(device, up4_cat, self.aggr_1, self.update_1)
+		gnn2 = self.GNN_layer(device, gnn1, self.aggr_2, self.update_2)
 		output = self.conv(gnn2)
 
 		# print(cts.shape)
@@ -138,34 +138,28 @@ class Segmentation(nn.Module):
 		return output
 
 
-	def GNN_layer(self, device, patient_range, in_features, aggr, update):
+	def GNN_layer(self, device, in_features, aggr, update):
 		features = in_features[:, None, :, :, :]
 		features = features.repeat(1,2,1,1,1)
 
-		for i,end in enumerate(patient_range):
-			# Get start and end index for certain patient
-			if i == 0:
-				start = 0
-			else:
-				start = patient_range[i-1]
 
-			for n1 in range(start, end):
-				similarities = []
-				# Find similarities of all pairs
-				for n2 in range(start, end):
-					if n1 == n2:
-						continue
-					similarities.append((n2, nn.functional.cosine_similarity(torch.flatten(features[n1,0]), torch.flatten(features[n2,0]), dim=0)))
-				# Sort and slice top 5
-				similarities = sorted(similarities, key=lambda x: x[1], reverse=True)
-				if len(similarities) < 3:
-					knn = [similarity[0] for similarity in similarities]
-				else:
-					knn = [similarities[i][0] for i in range(len(similarities)) if i<3]
-				knn = features[knn,0]
-				knn = aggr(knn)
-				knn = torch.mean(knn, dim=0, keepdim=False)
-				features[n1,1] = knn
+		for n1 in range(len(in_features)):
+			similarities = []
+			# Find similarities of all pairs
+			for n2 in range(len(in_features)):
+				if n1 == n2:
+					continue
+				similarities.append((n2, nn.functional.cosine_similarity(torch.flatten(features[n1,0]), torch.flatten(features[n2,0]), dim=0)))
+			# Sort and slice top 5
+			similarities = sorted(similarities, key=lambda x: x[1], reverse=True)
+			if len(similarities) < 3:
+				knn = [similarity[0] for similarity in similarities]
+			else:
+				knn = [similarities[i][0] for i in range(len(similarities)) if i<3]
+			knn = features[knn,0]
+			knn = aggr(knn)
+			knn = torch.mean(knn, dim=0, keepdim=False)
+			features[n1,1] = knn
 
 		features = torch.reshape(features, (features.shape[0], features.shape[1]*features.shape[2], features.shape[3], features.shape[4]))
 		features = update(features)

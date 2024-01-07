@@ -17,34 +17,45 @@ def segmentation_train(data_reader, device, time):
 	scaler = torch.cuda.amp.GradScaler(enabled=amp)
 
 	for epoch in range(data_reader.segmentation_epochs):
-		patient_range, cts, masks = data_reader.read_in_batch('segmentation', 'train')
-		cts = np.resize(cts, (40, 256, 256, 1))
-		masks = np.resize(masks, (40, 256, 256))
-		for i in range(len(cts)):
-			cv2.imwrite(f'test/{i}_ct.jpg', cts[i]*255)
-			cv2.imwrite(f'test/{i}_mask.jpg', masks[i]*255)
-		return
-		cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
-		masks = torch.from_numpy(masks)
+		patient_range, cts, masks = data_reader.read_in_batch('segmentation', 'train', epoch)
+
+		optimizer.zero_grad(set_to_none=True)
 		for iteration in range(data_reader.segmentation_iterations):
+			patient = iteration % data_reader.batch_size
+			start, end = patient_range[patient][0], patient_range[patient][1]
+			patient_cts = cts[start:end]
+			patient_masks = masks[start:end]
+
+			# Resize to 40 due to size limitation
+			shape = patient_cts.shape
+			if shape[0] > 40:
+				patient_cts = np.resize(patient_cts, (40, shape[1], shape[2], shape[3]))
+				patient_masks = np.resize(patient_masks, (40, shape[1], shape[2]))
+
+			patient_cts = torch.from_numpy(np.moveaxis(patient_cts, 3, 1))
+			patient_masks = torch.from_numpy(patient_masks)
+			return
+
 			model.train()
-			optimizer.zero_grad(set_to_none=True)
-			cts = cts.to(device=device, dtype=torch.float)
+			patient_cts = patient_cts.to(device=device, dtype=torch.float)
 			
-			masks = masks.type(torch.cuda.LongTensor)
-			masks.to(device)
+			patient_masks = patient_masks.type(torch.cuda.LongTensor)
+			patient_masks.to(device)
 
 			with torch.cuda.amp.autocast():
-				pred = model(device, patient_range, cts)
-				loss = entropy_loss_fn(pred, masks) + dice_loss_fn(pred, masks)
+				pred = model(device, patient_cts)
+				loss = entropy_loss_fn(pred, patient_masks) + dice_loss_fn(pred, patient_masks)
 
 			# Backpropagation
 			scaler.scale(loss).backward()
-			scaler.step(optimizer)
-			scaler.update()
 
-			loss = loss.item()
-			print(f"Epoch {epoch+1} iteration {iteration+1} loss: {loss:>7f}")
+			if iteration % data_reader.batch_size == data_reader.batch_size - 1:
+				scaler.step(optimizer)
+				scaler.update()
+				optimizer.zero_grad(set_to_none=True)
+
+				loss = loss.item()
+				print(f"Epoch {epoch+1} iteration {iteration+1} loss: {loss:>7f}")
 
 		torch.save(model.state_dict(), 'checkpoints/segmentation_model_{}.pt'.format(time))
 
