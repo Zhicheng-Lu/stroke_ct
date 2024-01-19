@@ -26,7 +26,7 @@ def segmentation_train(data_reader, device, time):
 		optimizer.zero_grad(set_to_none=True)
 		# Train
 		train_loss = 0.0
-		for iteration, (cts_path, masks_path) in enumerate(data_reader.segmentation_folders['train']):
+		for iteration, (cts_path, masks_path, _) in enumerate(data_reader.segmentation_folders['train']):
 			print(cts_path, masks_path)
 			cts, masks = data_reader.read_in_batch_segmentation(cts_path, masks_path)
 
@@ -60,7 +60,7 @@ def segmentation_train(data_reader, device, time):
 
 		# Test
 		test_loss = 0.0
-		for iteration, (cts_path, masks_path) in enumerate(data_reader.segmentation_folders['test']):
+		for iteration, (cts_path, masks_path, _) in enumerate(data_reader.segmentation_folders['test']):
 			cts, masks = data_reader.read_in_batch_segmentation(str(cts_path), str(masks_path))
 
 			cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
@@ -85,46 +85,89 @@ def segmentation_train(data_reader, device, time):
 
 
 
-def segmentation_test(data_reader, device, time):
+def segmentation_test(data_reader, device, time, write_to_file=True):
 	entropy_loss_fn = nn.CrossEntropyLoss()
 	dice_loss_fn = Diceloss()
 
 	model = Segmentation(data_reader.f_size)
-	model.load_state_dict(torch.load("checkpoints/segmentation_model.pt"), strict=False)
+	model.load_state_dict(torch.load("checkpoints/segmentation_model.pt"))
 	model = model.to(device)
 
-	cts_path, masks_path = data_reader.segmentation_test_folder[3]
-	print(cts_path, masks_path)
-	cts, masks = data_reader.read_in_batch_segmentation(str(cts_path), str(masks_path))
-	# Print out input
-	# masks = masks[:,:,:,None]
-	for i in range(len(cts)):
-		cv2.imwrite(f'test/{i}_ct.png', cts[i]*255)
-		cv2.imwrite(f'test/{i}_mask.png', masks[i]*255)
+	metrics = ['Dice', 'IOU', 'precision', 'recall']
 
-	# Make prediction
-	cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
-	cts = cts.to(device=device, dtype=torch.float)
-	masks = torch.from_numpy(masks)
-	masks = masks.type(torch.cuda.LongTensor)
-	masks.to(device)
-	with torch.no_grad():
-		pred = model(device, cts)
-		entropy_loss = entropy_loss_fn(pred, masks)
-		dice_loss = dice_loss_fn(pred, masks)
-		loss = entropy_loss + dice_loss
-	print(f"Entropy loss: {entropy_loss.item():>7f}")
-	print(f"Dice loss: {dice_loss.item():>7f}")
-	print(f"Total loss: {loss.item():>7f}")
+	results = {matrix: {'overall': {'TP': 0, 'FP': 0, 'FN': 0}} for matrix in metrics}
 
-	output = pred.cpu().detach().numpy()
-	output = np.argmax(output, axis=1)
-	output = output[:, :, :, None]
-	output = output * 255
-	for i,img in enumerate(output):
-		cv2.imwrite('test/{}_output.jpg'.format(i), img)
+	if write_to_file:
+		os.mkdir(f'test/segmentation_{time}')
+		f = open(f'test/segmentation_{time}/log.txt', 'a')
+
+	for iteration, (cts_path, masks_path, dataset) in enumerate(data_reader.segmentation_folders['test']):
+		if not dataset in results['Dice']:
+			for matrix in results:
+				results[matrix][dataset] = {'TP': 0, 'FP': 0, 'FN': 0}
+
+		cts_np, masks = data_reader.read_in_batch_segmentation(str(cts_path), str(masks_path))
+
+		cts = torch.from_numpy(np.moveaxis(cts_np, 3, 1))
+
+		cts = cts.to(device=device, dtype=torch.float)
+
+		# Infarct level evaluation metrics
+		with torch.no_grad():
+			pred = model(device, cts)
+			pred_softmax = nn.functional.softmax(pred, dim=1).float()
+			pred_masks = torch.argmax(pred_softmax, dim=1)
+			pred_masks = pred_masks.detach().cpu().numpy()
+			# pred_masks = pred_softmax[:,1,:,:]
+			overlap = pred_masks * masks
+			area_pred = np.sum(pred_masks)
+			area_masks = np.sum(masks)
+			TP = np.sum(overlap)
+			FP = area_pred - TP
+			FN = area_masks - TP
 
 
+		if write_to_file:
+			os.mkdir(f'test/segmentation_{time}/{iteration}_{dataset}')
+			f.write(f'{iteration}_{dataset}\n')
+			f.write(f'{cts_path}, {masks_path}\n')
+			f.write(f'Dice: {(2*TP + 1) / (2*TP + FP + FN + 1)}\n\n')
+			for i, (ct, mask, pred) in enumerate(zip(cts_np, masks, pred_masks)):
+				cv2.imwrite(f'test/segmentation_{time}/{iteration}_{dataset}/{i}_ct.jpg', ct*255)
+				cv2.imwrite(f'test/segmentation_{time}/{iteration}_{dataset}/{i}_gt.jpg', mask*255)
+				cv2.imwrite(f'test/segmentation_{time}/{iteration}_{dataset}/{i}_predicted.jpg', pred*255)
+
+		
+		for matrix in results:
+			results[matrix][dataset]['TP'] += TP
+			results[matrix][dataset]['FP'] += FP
+			results[matrix][dataset]['FN'] += FN
+			results[matrix]['overall']['TP'] += TP
+			results[matrix]['overall']['FP'] += FP
+			results[matrix]['overall']['FN'] += FN
+		break
+
+	
+	for matrix in results:
+		for dataset in results[matrix]:
+			TP = results[matrix][dataset]['TP']
+			FP = results[matrix][dataset]['FP']
+			FN = results[matrix][dataset]['FN']
+			if matrix == 'Dice':
+				results[matrix][dataset] = (2*TP + 1) / (2*TP + FP + FN + 1)
+			elif matrix == 'IOU':
+				results[matrix][dataset] = (TP + 1) / (TP + FP + FN + 1)
+			elif matrix == 'precision':
+				results[matrix][dataset] = (TP + 1) / (TP + FP + 1)
+			elif matrix == 'recall':
+				results[matrix][dataset] = (TP + 1) / (TP + FN + 1)
+		f.write(f'{matrix}\n{str(results[matrix])}\n')
+
+	if write_to_file:
+		f.close()
+
+
+# Dice Loss Function
 class Diceloss(torch.nn.Module):
 	def __init__(self):
 		super(Diceloss, self).__init__()

@@ -42,7 +42,7 @@ class SegmentationPreTrained(nn.Module):
 			nn.ReLU()
 		)
 
-	def forward(self, device, patient_range, cts):
+	def forward(self, device, cts):
 		down1 = self.down1(cts)
 		down2 = self.down2(down1)
 		down3 = self.down3(down2)

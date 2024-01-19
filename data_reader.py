@@ -20,26 +20,26 @@ class DataReader():
 
 		# Data
 		segmentation_path = config['Data']['segmentation']
-		segmentation_folders = np.load(segmentation_path)
 
 		# Model
 		self.f_size = int(config['Model']['f_size'])
 
 		# Training process
-		test_set = int(config['Train']['test_set'])
+		segmentation_train_set = eval(config['Train']['segmentation_train_set'])
+		segmentation_test_set = eval(config['Train']['segmentation_test_set'])
 		self.segmentation_epochs = int(config['Train']['segmentation_epochs'])
+		self.classification_train_set = eval(config['Train']['classification_train_set'])
+		self.classification_test_set = eval(config['Train']['classification_test_set'])
 		self.classification_epochs = int(config['Train']['classification_epochs'])
 		self.batch_size = int(config['Train']['batch_size'])
 
-		# Split training and testing folders
-		train_folders = [0,1,2,3,4]
-		train_folders.remove(test_set)
-		folders = {'train': train_folders, 'test': [test_set]}
+		# Split training and testing folders (segmentation)
+		folders = {'train': segmentation_train_set, 'test': segmentation_test_set}
 		self.segmentation_folders = {'train': [], 'test': []}
 
 		for mode in ['train', 'test']:
 			for folder in folders[mode]:
-				datasets_path = os.path.join('data', 'segmentation', f'folder_{folder}', mode)
+				datasets_path = os.path.join('data', 'segmentation', f'{folder}', mode)
 				datasets = os.listdir(datasets_path)
 				for dataset in datasets:
 					dataset_path = os.path.join(datasets_path, dataset)
@@ -47,15 +47,23 @@ class DataReader():
 					for patient in patients:
 						cts_path = os.path.join(dataset_path, 'images', patient)
 						masks_path = os.path.join(dataset_path, 'masks', patient)
-						self.segmentation_folders[mode].append((cts_path, masks_path))
+						self.segmentation_folders[mode].append((cts_path, masks_path, dataset))
 
+		# Split training and testing folders (classification)
+		folders = {'train': self.classification_train_set, 'test': self.classification_test_set}
+		self.classification_folders = {'train': [], 'test': []}
 
+		for mode in ['train', 'test']:
+			for folder in folders[mode]:
+				datasets_path = os.path.join('data', 'classification', f'{folder}', mode)
+				datasets = os.listdir(datasets_path)
+				for dataset in datasets:
+					dataset_path = os.path.join(datasets_path, dataset)
+					patients = os.listdir(dataset_path)
+					for patient in patients:
+						cts_path = os.path.join(dataset_path, patient)
+						self.classification_folders[mode].append((cts_path, dataset))
 
-	def read_in_batch(self, task, step, epoch):
-		if task == 'segmentation' and (step == 'train' or step == 'training' or step == 'test' or step == 'testing'):
-			return self.read_in_batch_segmentation(cts_path, masks_path)
-		if task == 'classification' and (step == 'train' or step == 'training' or step == 'test' or step == 'testing'):
-			return self.read_in_batch_classification()
 
 
 	def read_in_batch_segmentation(self, cts_path, masks_path):
@@ -103,53 +111,42 @@ class DataReader():
 
 
 
-	def read_in_batch_classification(self):
-		patient_range = []
-		batches_imgs = []
-		batches_labels = []
+	def read_in_batch_classification(self, folder, mode, dataset, patient, prepare):
+		if not prepare:
+			pass
 
-		# Data
-		hemorrhagic_dir = self.config['Data']['segmentation_hemorrhagic_dir']
-		hemorrhagic_patients = os.listdir(os.path.join(hemorrhagic_dir, 'mask'))
-		ischemic_dir = self.config['Data']['segmentation_ischemic_dir']
-		ischemic_patients = os.listdir(os.path.join(ischemic_dir, 'mask'))
-		dirs = {'Hemorrhagic': hemorrhagic_dir, 'Ischemic': ischemic_dir}
 
-		# Randomly find batches for hemorrhagic and ischemic stroke
-		batches = {'Hemorrhagic': random.sample(hemorrhagic_patients, int(self.batch_size / 2)), 'Ischemic': random.sample(ischemic_patients, int(self.batch_size / 2))}
-		# batches = {'Hemorrhagic': ['049'], 'Ischemic': []}
-		for stroke_type in ['Hemorrhagic', 'Ischemic']:
-			for batch in batches[stroke_type]:
-				# Find all image files in the directory, and sort
-				img_dir = os.path.join(dirs[stroke_type], 'images', batch)
-				img_files = os.listdir(img_dir)
-				img_files = [f for f in img_files if os.path.isfile(os.path.join(dirs[stroke_type], 'images', batch, f))]
-				img_files = sorted(img_files, key=lambda s: int(re.sub(r'\D', '', s) or 0))
-				# Record number of slices for each patient
-				if len(patient_range) == 0:
-					patient_range.append(len(img_files))
-				else:
-					patient_range.append(patient_range[-1] + len(img_files))
-				
-				# For each image file in the directory
-				for i,img_file in enumerate(img_files):
-					img_file_path = os.path.join(dirs[stroke_type], 'images', batch, img_file)
-					img = cv2.imread(img_file_path)
-					# Resize to 512*512
-					img = cv2.resize(img, (self.height, self.width))
-					# Convert to greyscale
-					img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-					# Add extra channel
-					img = np.reshape(img, (self.height, self.width, 1))
-					
-					batches_imgs.append(img / 255)
+		cts = []
+		label = -1
 
-				# Read labels
-				if stroke_type == 'Normal':
-					batches_labels.append(0)
-				elif stroke_type == 'Ischemic':
-					batches_labels.append(1)
-				else:
-					batches_labels.append(2)
+		cts_path = f'data/classification/{folder}/{mode}/{dataset}/{patient}'
+		ct_files = os.listdir(cts_path)
+		ct_files = [f for f in ct_files if os.path.isfile(os.path.join(cts_path, f))]
+		ct_files = sorted(ct_files, key=lambda s: int(re.sub(r'\D', '', s) or 0))
 
-		return patient_range, np.array(batches_imgs), np.array(batches_labels)
+		# For each image file in the directory
+		for i,ct_file in enumerate(ct_files):
+			ct_file_path = os.path.join(cts_path, ct_file)
+			ct = cv2.imread(ct_file_path)
+			# Resize to 512*512
+			ct = cv2.resize(ct, (self.height, self.width))
+			# Convert to greyscale
+			ct = cv2.cvtColor(ct, cv2.COLOR_BGR2GRAY)
+			# Add extra channel
+			ct = np.reshape(ct, (self.height, self.width, 1))
+			
+			cts.append(ct / 255)
+
+		cts = np.array(cts)
+		shape = cts.shape
+		if shape[0] > 40:
+			cts = np.resize(cts, (40, shape[1], shape[2], shape[3]))
+
+		return cts
+
+
+			# labels_file = open(f'data/classification/labels/{dataset}.txt')
+			# labels = {}
+			# for row in labels_file:
+			# 	labels[row.strip().split('\t')[0]] = row.strip().split('\t')[1]
+			# print(labels)

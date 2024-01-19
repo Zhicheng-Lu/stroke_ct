@@ -9,6 +9,34 @@ from models.segmentation_pretrained import SegmentationPreTrained
 from models.classification import Classification
 
 
+def classification_prepare(data_reader, device):
+	# Pre-trained segmentation model
+	segmentation_pretrained = SegmentationPreTrained(data_reader.f_size)
+	segmentation_pretrained.load_state_dict(torch.load("checkpoints/segmentation_model.pt"), strict=False)
+	segmentation_pretrained = segmentation_pretrained.to(device)
+
+	# Search through both train and test sets
+	data_reader.classification_train_set.extend(data_reader.classification_test_set)
+	folders = data_reader.classification_train_set
+	
+	for folder in folders:
+		for mode in ['train', 'test']:
+			datasets = os.listdir(f'data/classification/{folder}/{mode}')
+			for dataset in datasets:
+				patients = os.listdir(f'data/classification/{folder}/{mode}/{dataset}')
+				for patient in patients:
+					cts = data_reader.read_in_batch_classification(folder, mode, dataset, patient, True)
+					cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
+					cts = cts.to(device=device, dtype=torch.float)
+					# From pre-trained segmentation model, resize
+					features = segmentation_pretrained(device, cts)
+					features = features.cpu().detach().numpy()
+					features = np.resize(features, (data_reader.num_slices,data_reader.f_size*16,int(data_reader.height/16),int(data_reader.width/16)))
+					print(features.shape)
+					return
+
+
+
 def classification_train(data_reader, device, time):
 	# Pre-trained segmentation model
 	segmentation_pretrained = SegmentationPreTrained(data_reader.f_size)
