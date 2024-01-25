@@ -48,6 +48,9 @@ class DataReader():
 						cts_path = os.path.join(dataset_path, 'images', patient)
 						masks_path = os.path.join(dataset_path, 'masks', patient)
 						self.segmentation_folders[mode].append((cts_path, masks_path, dataset))
+		# Shuffle for random order
+		random.shuffle(self.segmentation_folders['train'])
+		random.shuffle(self.segmentation_folders['test'])
 
 		# Split training and testing folders (classification)
 		folders = {'train': self.classification_train_set, 'test': self.classification_test_set}
@@ -62,7 +65,10 @@ class DataReader():
 					patients = os.listdir(dataset_path)
 					for patient in patients:
 						cts_path = os.path.join(dataset_path, patient)
-						self.classification_folders[mode].append((cts_path, dataset))
+						self.classification_folders[mode].append((cts_path, patient, dataset))
+		# Shuffle for random order
+		random.shuffle(self.classification_folders['train'])
+		random.shuffle(self.classification_folders['test'])
 
 
 
@@ -111,15 +117,25 @@ class DataReader():
 
 
 
-	def read_in_batch_classification(self, folder, mode, dataset, patient, prepare):
-		if not prepare:
-			pass
+	def prepare_labels_classification(self):
+		self.labels_dict = {}
+
+		datasets = os.listdir('data/classification/labels')
+		for dataset_txt in datasets:
+			dataset = dataset_txt.split('.')[0]
+			self.labels_dict[dataset] = {}
+			f = open(f'data/classification/labels/{dataset}.txt', 'r')
+			for row in f:
+				sample_name = row.strip().split('\t')[0]
+				label = row.strip().split('\t')[1]
+				self.labels_dict[dataset][sample_name] = eval(label)
+			f.close()
 
 
+	def read_in_batch_classification(self, cts_path, patient, dataset):
 		cts = []
 		label = -1
 
-		cts_path = f'data/classification/{folder}/{mode}/{dataset}/{patient}'
 		ct_files = os.listdir(cts_path)
 		ct_files = [f for f in ct_files if os.path.isfile(os.path.join(cts_path, f))]
 		ct_files = sorted(ct_files, key=lambda s: int(re.sub(r'\D', '', s) or 0))
@@ -142,11 +158,8 @@ class DataReader():
 		if shape[0] > 40:
 			cts = np.resize(cts, (40, shape[1], shape[2], shape[3]))
 
-		return cts
 
+		# Labels
+		label = self.labels_dict[dataset][patient.split('_')[0]]
 
-			# labels_file = open(f'data/classification/labels/{dataset}.txt')
-			# labels = {}
-			# for row in labels_file:
-			# 	labels[row.strip().split('\t')[0]] = row.strip().split('\t')[1]
-			# print(labels)
+		return cts, label
