@@ -9,12 +9,14 @@ from models.segmentation import Segmentation
 
 
 def segmentation_train(data_reader, device, time):
+	# Define loss and model
 	entropy_loss_fn = nn.CrossEntropyLoss()
 	dice_loss_fn = Diceloss()
 	model = Segmentation(data_reader.f_size)
 	model.load_state_dict(torch.load("checkpoints/segmentation_model.pt"))
 	model = model.to(device)
 
+	# Define optimier and scaler
 	optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-5)
 	scaler = torch.cuda.amp.GradScaler(enabled=amp)
 
@@ -49,6 +51,7 @@ def segmentation_train(data_reader, device, time):
 			# Backpropagation
 			scaler.scale(loss).backward()
 
+			# Gradient accumulation
 			if (iteration+1) % data_reader.batch_size == 0:
 				scaler.step(optimizer)
 				optimizer.zero_grad(set_to_none=True)
@@ -86,15 +89,15 @@ def segmentation_train(data_reader, device, time):
 
 
 def segmentation_test(data_reader, device, time, write_to_file=True):
+	# Define loss function and model
 	entropy_loss_fn = nn.CrossEntropyLoss()
 	dice_loss_fn = Diceloss()
-
 	model = Segmentation(data_reader.f_size)
 	model.load_state_dict(torch.load("checkpoints/segmentation_model.pt"))
 	model = model.to(device)
 
+	# Define metrics and initalize empty
 	metrics = ['Dice', 'IOU', 'precision', 'recall']
-
 	results = {matrix: {'overall': {'TP': 0, 'FP': 0, 'FN': 0}} for matrix in metrics}
 
 	if write_to_file:
@@ -102,6 +105,7 @@ def segmentation_test(data_reader, device, time, write_to_file=True):
 		f = open(f'test/segmentation_{time}/log.txt', 'a')
 
 	for iteration, (cts_path, masks_path, dataset) in enumerate(data_reader.segmentation_folders['test']):
+		# Add dataset to certain metrics
 		if not dataset in results['Dice']:
 			for matrix in results:
 				results[matrix][dataset] = {'TP': 0, 'FP': 0, 'FN': 0}
@@ -127,6 +131,7 @@ def segmentation_test(data_reader, device, time, write_to_file=True):
 			FN = area_masks - TP
 
 
+		# Write output to file
 		if write_to_file:
 			os.mkdir(f'test/segmentation_{time}/{iteration}_{dataset}')
 			f.write(f'{iteration}_{dataset}\n')
@@ -145,9 +150,8 @@ def segmentation_test(data_reader, device, time, write_to_file=True):
 			results[matrix]['overall']['TP'] += TP
 			results[matrix]['overall']['FP'] += FP
 			results[matrix]['overall']['FN'] += FN
-		break
 
-	
+	# Final results
 	for matrix in results:
 		for dataset in results[matrix]:
 			TP = results[matrix][dataset]['TP']

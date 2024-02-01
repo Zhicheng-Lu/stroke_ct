@@ -108,6 +108,7 @@ class DataReader():
 
 		batches_imgs = np.array(batches_imgs)
 		batches_masks = np.array(batches_masks)
+		# Resize to 40 if more than 40 slices
 		shape = batches_imgs.shape
 		if shape[0] > 40:
 			batches_imgs = np.resize(batches_imgs, (40, shape[1], shape[2], shape[3]))
@@ -117,6 +118,7 @@ class DataReader():
 
 
 
+	# Read labels and store them in dictionary for future reference
 	def prepare_labels_classification(self):
 		self.labels_dict = {}
 
@@ -134,7 +136,6 @@ class DataReader():
 
 	def read_in_batch_classification(self, cts_path, patient, dataset):
 		cts = []
-		label = -1
 
 		ct_files = os.listdir(cts_path)
 		ct_files = [f for f in ct_files if os.path.isfile(os.path.join(cts_path, f))]
@@ -153,13 +154,15 @@ class DataReader():
 			
 			cts.append(ct / 255)
 
+		# Resize to pre-defined value
 		cts = np.array(cts)
 		shape = cts.shape
-		if shape[0] > 40:
-			cts = np.resize(cts, (40, shape[1], shape[2], shape[3]))
+		cts = np.resize(cts, (self.num_slices, shape[3], shape[1], shape[2]))
 
 
 		# Labels
 		label = self.labels_dict[dataset][patient.split('_')[0]]
+		label = np.array(label)
+		label = np.argmax(label)
 
 		return cts, label
