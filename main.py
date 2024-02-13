@@ -5,7 +5,7 @@ from datetime import datetime
 from data_reader import DataReader
 from segmentation import segmentation_train, segmentation_test, Diceloss
 from classification import classification_train, classification_test
-# from severity import severity_train
+from severity import severity_train
 
 
 def main(argv):
@@ -31,7 +31,6 @@ def main(argv):
 	# Get cpu or gpu device for training.
 	device = "cuda" if torch.cuda.is_available() else "cpu"
 	print(f"Using {device} device")
-	# torch.cuda.empty_cache()
 	time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
 	# Call the corresponding function
@@ -43,7 +42,7 @@ def main(argv):
 		classification_train(data_reader, device, time)
 	if task == 'classification' and (step == 'test' or step == 'testing'):
 		classification_test(data_reader, device, time)
-	if task == 'severity' and (step == 'train' or step == 'training'):
+	if task == 'severity':
 		severity_train(data_reader, device, time)
 
 

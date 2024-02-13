@@ -59,7 +59,7 @@ class Classification(nn.Module):
 			nn.Dropout(0.5)
 		)
 		self.dense3 = nn.Sequential(
-			nn.Linear(in_features=100, out_features=3)
+			nn.Linear(in_features=100, out_features=2)
 		)
 
 

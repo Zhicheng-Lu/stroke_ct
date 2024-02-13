@@ -32,7 +32,7 @@ def segmentation_train(data_reader, device, time):
 			print(cts_path, masks_path)
 			cts, masks = data_reader.read_in_batch_segmentation(cts_path, masks_path)
 
-			cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
+			cts = torch.from_numpy(cts)
 			masks = torch.from_numpy(masks)
 
 			model.train()
@@ -61,28 +61,28 @@ def segmentation_train(data_reader, device, time):
 
 		torch.save(model.state_dict(), f'checkpoints/segmentation_model_{time}/epoch_{str(epoch).zfill(3)}.pt')
 
-		# Test
-		test_loss = 0.0
-		for iteration, (cts_path, masks_path, _) in enumerate(data_reader.segmentation_folders['test']):
-			cts, masks = data_reader.read_in_batch_segmentation(str(cts_path), str(masks_path))
+		# # Test
+		# test_loss = 0.0
+		# for iteration, (cts_path, masks_path, _) in enumerate(data_reader.segmentation_folders['test']):
+		# 	cts, masks = data_reader.read_in_batch_segmentation(str(cts_path), str(masks_path))
 
-			cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
-			masks = torch.from_numpy(masks)
+		# 	cts = torch.from_numpy(np.moveaxis(cts, 3, 1))
+		# 	masks = torch.from_numpy(masks)
 
-			cts = cts.to(device=device, dtype=torch.float)
-			masks = masks.type(torch.cuda.LongTensor)
-			masks.to(device)
+		# 	cts = cts.to(device=device, dtype=torch.float)
+		# 	masks = masks.type(torch.cuda.LongTensor)
+		# 	masks.to(device)
 
-			with torch.no_grad():
-				pred = model(device, cts)
-				loss = entropy_loss_fn(pred, masks) + dice_loss_fn(pred, masks)
-				test_loss += loss.item()
+		# 	with torch.no_grad():
+		# 		pred = model(device, cts)
+		# 		loss = entropy_loss_fn(pred, masks) + dice_loss_fn(pred, masks)
+		# 		test_loss += loss.item()
 
-		test_loss = test_loss / len(data_reader.segmentation_folders['test'])
+		# test_loss = test_loss / len(data_reader.segmentation_folders['test'])
 
-		losses.append((epoch, train_loss, test_loss))
+		# losses.append((epoch, train_loss, test_loss))
 
-		print(losses)
+		# print(losses)
 
 
 

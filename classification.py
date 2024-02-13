@@ -6,6 +6,8 @@ from torch import nn
 from data_reader import DataReader
 from torch.cuda import amp
 from models.classification import Classification
+from models.segmentation import Segmentation
+import random
 
 
 def classification_train(data_reader, device, time):
@@ -38,7 +40,11 @@ def classification_train(data_reader, device, time):
 				batch_cts = []
 				batch_labels = []
 
+			# remove normal class during training
 			cts, label = data_reader.read_in_batch_classification(cts_path, patient, dataset)
+			if label == 0:
+				continue
+			label -= 1
 
 			batch_cts.append(cts)
 			batch_labels.append(label)
@@ -76,6 +82,9 @@ def classification_train(data_reader, device, time):
 		train_losses = []
 		for iteration, (cts_path, patient, dataset) in enumerate(data_reader.classification_folders['train']):
 			cts, label = data_reader.read_in_batch_classification(cts_path, patient, dataset)
+			if label == 0:
+				continue
+			label -= 1
 
 			cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
 			label = torch.from_numpy(np.array([label]))
@@ -97,6 +106,10 @@ def classification_train(data_reader, device, time):
 				test_losses[dataset] = []
 
 			cts, label = data_reader.read_in_batch_classification(cts_path, patient, dataset)
+			if label == 0:
+				continue
+			label -= 1
+
 			cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
 			label = torch.from_numpy(np.array([label]))
 			label = label.type(torch.cuda.LongTensor)
@@ -123,6 +136,11 @@ def classification_test(data_reader, device, time):
 	# Prepare labels
 	data_reader.prepare_labels_classification()
 
+	# Segmentation model
+	segmentation_model = Segmentation(data_reader.f_size)
+	segmentation_model.load_state_dict(torch.load("checkpoints/segmentation_model.pt"))
+	segmentation_model = segmentation_model.to(device)
+
 	# New classification model
 	classification_model = Classification(data_reader)
 	classification_model.load_state_dict(torch.load("checkpoints/classification_model.pt"))
@@ -132,16 +150,36 @@ def classification_test(data_reader, device, time):
 
 	for iteration, (cts_path, patient, dataset) in enumerate(data_reader.classification_folders['test']):
 		cts, label = data_reader.read_in_batch_classification(cts_path, patient, dataset)
-
-		cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
-
+		
+		# Fed into segmentation model, to see the area of segmented lesion
+		seg_cts = torch.from_numpy(cts).to(device=device, dtype=torch.float)
 		with torch.no_grad():
-			pred = classification_model(device, cts, data_reader)
-			pred = nn.functional.softmax(pred, dim=1).float()
-			pred = pred.cpu().detach().numpy()[0]
+			seg_pred = segmentation_model(device, seg_cts)
+			seg_pred = torch.argmax(seg_pred, dim=1)
+			area = torch.sum(seg_pred)
+
+		if area < 5:
+			pred = [1.0, 0.0, 0.0]
+
+		else:
+			# Fed into classification model
+			cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
+
+			with torch.no_grad():
+				pred = classification_model(device, cts, data_reader)
+				pred = nn.functional.softmax(pred, dim=1).float()
+				pred = pred.cpu().detach().numpy()[0]
+				pred = np.insert(pred, 0, 0.0)
+
+		print(label, area, pred)
+
+		# print(label, pred)
 
 		if not dataset in datasets_results:
 			datasets_results[dataset] = []
+
+		# if dataset == 'CQ500':
+		# 	print(patient, label, pred, np.argmax(pred))
 
 		datasets_results['overall'].append([pred, label])
 		datasets_results[dataset].append([pred, label])
@@ -162,9 +200,11 @@ def get_stats(results):
 
 
 
+# Confusion matrix
 def get_confusion_matrix(results, stroke_type, num_classes):
 	stroke_types = ['Normal', 'Ischemic', 'Hemorrhagic']
 
+	# True positive, true negative, false positive, false negative
 	TP, TN, FP, FN = 0, 0, 0, 0
 
 	for pred, label in results:
@@ -187,6 +227,7 @@ def get_confusion_matrix(results, stroke_type, num_classes):
 
 	dice, recall, specificity = 'N/A', 'N/A', 'N/A'
 
+	# Dice, recall and specificity
 	if 2*TP + FP + FN != 0:
 		dice = 2*TP / (2*TP + FP + FN)
 	if TP + FN != 0:
@@ -195,6 +236,7 @@ def get_confusion_matrix(results, stroke_type, num_classes):
 		specificity = TN / (TN + FP)
 	
 
+	# AUC
 	if num_classes == 2:
 		results = [[pred, label] for pred, label in results if label == 0 or label == stroke_type]
 

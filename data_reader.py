@@ -4,6 +4,8 @@ import configparser
 import numpy as np
 import random
 import re
+from scipy.ndimage import zoom
+
 
 class DataReader():
 	def __init__(self):
@@ -17,9 +19,6 @@ class DataReader():
 		self.width = int(config['Image']['width'])
 		self.height = int(config['Image']['height'])
 		self.num_slices = int(config['Image']['num_slices'])
-
-		# Data
-		segmentation_path = config['Data']['segmentation']
 
 		# Model
 		self.f_size = int(config['Model']['f_size'])
@@ -71,6 +70,16 @@ class DataReader():
 		random.shuffle(self.classification_folders['test'])
 
 
+		# Severity prediction
+		severity_paths = {'hemorrhagic': config['Train']['severity_hemorrhagic'], 'ischemic': config['Train']['severity_ischemic']}
+		self.severity = {'hemorrhagic': [], 'ischemic': []}
+		for severity_type, severity_path in severity_paths.items():
+			datasets = os.listdir(severity_path)
+			for dataset in datasets:
+				for patient in os.listdir(f'{severity_path}/{dataset}/images'):
+					self.severity[severity_type].append((f'{severity_path}/{dataset}/images/{patient}', f'{severity_path}/{dataset}/masks/{patient}'))
+
+
 
 	def read_in_batch_segmentation(self, cts_path, masks_path):
 		batches_imgs = []
@@ -111,8 +120,8 @@ class DataReader():
 		# Resize to 40 if more than 40 slices
 		shape = batches_imgs.shape
 		if shape[0] > 40:
-			batches_imgs = np.resize(batches_imgs, (40, shape[1], shape[2], shape[3]))
-			batches_masks = np.resize(batches_masks, (40, shape[1], shape[2]))
+			batches_imgs = zoom(batches_imgs, (40/shape[0], 1, 1, 1))
+			batches_masks = zoom(batches_masks, (40/shape[0], 1, 1))
 
 		return batches_imgs, batches_masks
 
@@ -157,7 +166,8 @@ class DataReader():
 		# Resize to pre-defined value
 		cts = np.array(cts)
 		shape = cts.shape
-		cts = np.resize(cts, (self.num_slices, shape[3], shape[1], shape[2]))
+		cts = zoom(cts, (self.num_slices/shape[0], 1, 1, 1))
+		cts = np.moveaxis(cts, 3, 1)
 
 
 		# Labels
@@ -166,3 +176,49 @@ class DataReader():
 		label = np.argmax(label)
 
 		return cts, label
+
+
+
+	def read_in_batch_severity(self, cts_path, masks_path):
+		batches_imgs = []
+		batches_masks = []
+
+		# Find all image files in the directory, and sort
+		img_dir = cts_path
+		img_files = os.listdir(img_dir)
+		img_files = [f for f in img_files if os.path.isfile(os.path.join(img_dir, f))]
+		img_files = sorted(img_files, key=lambda s: int(re.sub(r'\D', '', s) or 0))
+		
+		# For each image file in the directory
+		for i,img_file in enumerate(img_files):
+			img_file_path = os.path.join(img_dir, img_file)
+			img = cv2.imread(img_file_path)
+			# Resize to 512*512
+			img = cv2.resize(img, (self.height, self.width))
+			# Convert to greyscale
+			img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+			# Add extra channel
+			img = np.reshape(img, (self.height, self.width, 1))
+			
+			batches_imgs.append(img / 255)
+
+			# Read masks
+			mask_file_path = os.path.join(masks_path, img_file)
+			if not os.path.exists(mask_file_path):
+				batches_masks.append(np.zeros((self.height, self.width)))
+			else:
+				mask = cv2.imread(mask_file_path)
+				mask = cv2.resize(mask, (self.height, self.width))
+				mask = np.where(mask > 0.5, 1, 0)
+				mask = np.min(mask, axis=2)
+				batches_masks.append(mask)
+
+		batches_imgs = np.array(batches_imgs)
+		batches_masks = np.array(batches_masks)
+		# Resize to 40 if more than 40 slices
+		shape = batches_imgs.shape
+		batches_imgs = zoom(batches_imgs, (self.num_slices/shape[0], 1, 1))
+		batches_imgs = np.moveaxis(batches_imgs, 3, 1)
+		batches_masks = zoom(batches_masks, (self.num_slices/shape[0], 1, 1))
+
+		return batches_imgs, batches_masks
