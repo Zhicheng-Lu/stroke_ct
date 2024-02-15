@@ -166,7 +166,8 @@ class DataReader():
 		# Resize to pre-defined value
 		cts = np.array(cts)
 		shape = cts.shape
-		cts = zoom(cts, (self.num_slices/shape[0], 1, 1, 1))
+		if shape[0] != self.num_slices:
+			cts = zoom(cts, (self.num_slices/shape[0], 1, 1, 1))
 		cts = np.moveaxis(cts, 3, 1)
 
 
@@ -217,7 +218,7 @@ class DataReader():
 		batches_masks = np.array(batches_masks)
 		# Resize to 40 if more than 40 slices
 		shape = batches_imgs.shape
-		batches_imgs = zoom(batches_imgs, (self.num_slices/shape[0], 1, 1))
+		batches_imgs = zoom(batches_imgs, (self.num_slices/shape[0], 1, 1, 1))
 		batches_imgs = np.moveaxis(batches_imgs, 3, 1)
 		batches_masks = zoom(batches_masks, (self.num_slices/shape[0], 1, 1))
 

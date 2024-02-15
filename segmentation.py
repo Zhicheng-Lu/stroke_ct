@@ -13,7 +13,7 @@ def segmentation_train(data_reader, device, time):
 	entropy_loss_fn = nn.CrossEntropyLoss()
 	dice_loss_fn = Diceloss()
 	model = Segmentation(data_reader.f_size)
-	model.load_state_dict(torch.load("checkpoints/segmentation_model.pt"))
+	# model.load_state_dict(torch.load("checkpoints/segmentation_model.pt"))
 	model = model.to(device)
 
 	# Define optimier and scaler

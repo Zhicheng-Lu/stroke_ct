@@ -158,7 +158,7 @@ def classification_test(data_reader, device, time):
 			seg_pred = torch.argmax(seg_pred, dim=1)
 			area = torch.sum(seg_pred)
 
-		if area < 5:
+		if area < 200:
 			pred = [1.0, 0.0, 0.0]
 
 		else:
