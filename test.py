@@ -59,7 +59,7 @@ def main():
 
 	# classification
 	area = np.sum(segmentation_pred)
-	if area == 0:
+	if area <= 50:
 		classification_pred = 0
 
 	else:
@@ -85,8 +85,8 @@ def main():
 
 
 	# Severity
-	if classification_pred == 0:
-		severity == 'No stroke'
+	if classification_pred < 50:
+		cluster = 'No stroke'
 
 	else:
 		if classification_pred == 1:

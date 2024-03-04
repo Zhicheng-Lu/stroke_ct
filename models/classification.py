@@ -51,15 +51,15 @@ class Classification(nn.Module):
 			# nn.Linear(in_features=data_reader.f_size*16*int(data_reader.num_slices/32)*int(data_reader.height/32)*int(data_reader.width/32), out_features=100),
 			nn.Linear(in_features=524288, out_features=100),
 			nn.ReLU(),
-			nn.Dropout(0.5)
+			nn.Dropout(0.2)
 		)
 		self.dense2 = nn.Sequential(
 			nn.Linear(in_features=100, out_features=100),
 			nn.ReLU(),
-			nn.Dropout(0.5)
+			nn.Dropout(0.2)
 		)
 		self.dense3 = nn.Sequential(
-			nn.Linear(in_features=100, out_features=2)
+			nn.Linear(in_features=100, out_features=3)
 		)
 
 

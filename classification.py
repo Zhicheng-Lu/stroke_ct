@@ -25,7 +25,7 @@ def classification_train(data_reader, device, time):
 			param.requires_grad = False
 
 	# Define optimier, scaler and loss
-	optimizer = torch.optim.SGD(classification_model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.01)
+	optimizer = torch.optim.SGD(classification_model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.001)
 	scaler = torch.cuda.amp.GradScaler(enabled=amp)
 	entropy_loss_fn = nn.CrossEntropyLoss()
 
@@ -42,9 +42,9 @@ def classification_train(data_reader, device, time):
 
 			# remove normal class during training
 			cts, label = data_reader.read_in_batch_classification(cts_path, patient, dataset)
-			if label == 0:
-				continue
-			label -= 1
+			# if label == 0:
+			# 	continue
+			# label -= 1
 
 			batch_cts.append(cts)
 			batch_labels.append(label)
@@ -82,9 +82,9 @@ def classification_train(data_reader, device, time):
 		train_losses = []
 		for iteration, (cts_path, patient, dataset) in enumerate(data_reader.classification_folders['train']):
 			cts, label = data_reader.read_in_batch_classification(cts_path, patient, dataset)
-			if label == 0:
-				continue
-			label -= 1
+			# if label == 0:
+			# 	continue
+			# label -= 1
 
 			cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
 			label = torch.from_numpy(np.array([label]))
@@ -106,9 +106,9 @@ def classification_train(data_reader, device, time):
 				test_losses[dataset] = []
 
 			cts, label = data_reader.read_in_batch_classification(cts_path, patient, dataset)
-			if label == 0:
-				continue
-			label -= 1
+			# if label == 0:
+			# 	continue
+			# label -= 1
 
 			cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
 			label = torch.from_numpy(np.array([label]))
@@ -148,32 +148,43 @@ def classification_test(data_reader, device, time):
 
 	datasets_results = {'overall': []}
 
+	groups = {}
+
 	for iteration, (cts_path, patient, dataset) in enumerate(data_reader.classification_folders['test']):
 		cts, label = data_reader.read_in_batch_classification(cts_path, patient, dataset)
 		
 		# Fed into segmentation model, to see the area of segmented lesion
-		seg_cts = torch.from_numpy(cts).to(device=device, dtype=torch.float)
+		# seg_cts = torch.from_numpy(cts).to(device=device, dtype=torch.float)
+		# with torch.no_grad():
+		# 	seg_pred = segmentation_model(device, seg_cts)
+		# 	seg_pred = torch.argmax(seg_pred, dim=1)
+		# 	area = torch.sum(seg_pred)
+
+		# if area <= 50:
+		# 	pred = [1.0, 0.0, 0.0]
+
+		# else:
+		# 	# Fed into classification model
+		# 	cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
+
+		# 	with torch.no_grad():
+		# 		pred = classification_model(device, cts, data_reader)
+		# 		pred = nn.functional.softmax(pred, dim=1).float()
+		# 		pred = pred.cpu().detach().numpy()[0]
+		# 		pred = np.insert(pred, 0, 0.0)
+
+		# Get prediction results
+		cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
+
 		with torch.no_grad():
-			seg_pred = segmentation_model(device, seg_cts)
-			seg_pred = torch.argmax(seg_pred, dim=1)
-			area = torch.sum(seg_pred)
+			pred = classification_model(device, cts, data_reader)
+			pred = nn.functional.softmax(pred, dim=1).float()
+			pred = pred.cpu().detach().numpy()[0]
 
-		if area < 200:
-			pred = [1.0, 0.0, 0.0]
 
-		else:
-			# Fed into classification model
-			cts = torch.from_numpy(cts[None,:]).to(device=device, dtype=torch.float)
-
-			with torch.no_grad():
-				pred = classification_model(device, cts, data_reader)
-				pred = nn.functional.softmax(pred, dim=1).float()
-				pred = pred.cpu().detach().numpy()[0]
-				pred = np.insert(pred, 0, 0.0)
-
-		print(label, area, pred)
-
-		# print(label, pred)
+		if not (label, np.argmax(pred)) in groups:
+			groups[(label, np.argmax(pred))] = []
+		groups[label, np.argmax(pred)].append(cts_path)
 
 		if not dataset in datasets_results:
 			datasets_results[dataset] = []
@@ -183,6 +194,9 @@ def classification_test(data_reader, device, time):
 
 		datasets_results['overall'].append([pred, label])
 		datasets_results[dataset].append([pred, label])
+
+	for key, items in groups.items():
+		print(key, len(items), items)
 
 	for dataset, results in datasets_results.items():
 		print(dataset)

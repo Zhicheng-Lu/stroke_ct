@@ -6,20 +6,19 @@ from scipy.ndimage import zoom
 
 
 def main():
-	stroke_type = 'Ischemic'
-	dataset = 'AISD'
-	patient = '0538942'
+	path = '../test/3D_modelling/samples/severity_samples'
+	folder = 'ICH_1_minor'
 
 	imgs = []
 	masks = []
 
-	files = os.listdir(f'../data/severity/{stroke_type}/{dataset}/images/{patient}')
+	files = os.listdir(f'{path}/{folder}/images')
 	files = sorted(files, key=lambda s: int(re.sub(r'\D', '', s) or 0))
 	for file in files:
-		img = cv2.resize(cv2.imread(f'../data/severity/{stroke_type}/{dataset}/images/{patient}/{file}'), (80, 80))
+		img = cv2.resize(cv2.imread(f'{path}/{folder}/images/{file}'), (80, 80))
 		imgs.append(img)
 
-		mask_file_path = f'../data/severity/{stroke_type}/{dataset}/masks/{patient}/{file}'
+		mask_file_path = f'{path}/{folder}/masks/{file}'
 		# if not os.path.exists(mask_file_path):
 		# 	mask = np.zeros((img.shape[0], img.shape[1], 3))
 		# else:
@@ -37,8 +36,22 @@ def main():
 				if np.sum(masks[sli, row, col]) > 0:
 					imgs[sli, row, col] = [0, 0 ,255]
 
+	os.mkdir(f'../test/severity/{folder}')
+
 	for i,img in enumerate(imgs):
-		cv2.imwrite(f'../test/severity/{i}.png', img)
+		cv2.imwrite(f'../test/severity/{folder}/{i}.png', img)
+
+	# folder = '../test/3D_modelling/samples/segmentation_samples/BHSD_015/masks'
+	# for file in os.listdir(folder):
+	# 	img = cv2.imread(f'{folder}/{file}')
+	# 	for row in range(img.shape[0]):
+	# 		for col in range(img.shape[1]):
+	# 			if np.sum(img[row, col]) > 0:
+	# 				img[row, col] = [255, 255, 255]
+
+	# 	img = cv2.resize(img, (80, 80))
+
+	# 	cv2.imwrite(f'{file}', img)
 
 
 if __name__ == "__main__":
