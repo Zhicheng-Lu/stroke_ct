@@ -6,15 +6,15 @@ def main():
 	# segmentation_cross_validation_distribution()
 	# segmentation_cross_validation_results()
 	# segmentation_comparison_distribution()
-	classification_cross_validation_distribution()
-	classification_cross_validation_results()
-	# classification_comparison_distribution()
+	# classification_cross_validation_distribution()
+	# classification_cross_validation_results()
+	classification_comparison_distribution()
 
 
 
 def segmentation_cross_validation_distribution():
 	datasets = ('AISD', 'PhysioNet-ICH', 'BHSD', 'Seg-CQ500', 'Total')
-	sample_counts = [('Original', np.array([78, 7, 38, 60, 183]), '#7FB2D5'), ('Augmented', np.array([78, 49, 0, 0, 127]), '#B3D1E7')]
+	sample_counts = [('Original', np.array([397, 36, 192, 51, 676]), '#7FB2D5CC'), ('Augmented', np.array([397, 288, 0, 255, 940]), '#B3D1E7CC')]
 
 	# plt.figure(figsize=(8, 4.8))
 	# plt.rcParams.update({'font.family': 'Times New Roman'})
@@ -43,7 +43,7 @@ def segmentation_cross_validation_distribution():
 			lab.set_fontweight('bold')
 
 	ax.legend()
-	ax.set_ylim([0,340])
+	ax.set_ylim([0,1800])
 	plt.savefig('../test/segmentation/cross_validation_distribution.png', bbox_inches='tight', dpi=300)
 	plt.show()
 
@@ -84,8 +84,8 @@ def segmentation_cross_validation_results():
 
 def segmentation_comparison_distribution():
 	metrics = ('AISD', 'PhysioNet-ICH', 'BHSD', 'Seg-CQ500', 'Normal', 'Total')
-	values = {'Training (original)': (345, 0, 192, 300, 200, 1037), 'Training (augmented)': (345, 0, 192, 0, 0, 437), 'Testing': (52, 36, 0, 0, 0, 88)}
-	colors = {'Training (original)': '#7FB2D5', 'Training (augmented)': '#B3D1E7', 'Testing': '#F47F72'}
+	values = {'Training (original)': (345, 0, 192, 51, 200, 788), 'Training (augmented)': (345, 0, 192, 0, 0, 437), 'Testing': (52, 36, 0, 0, 0, 88)}
+	colors = {'Training (original)': '#7FB2D5CC', 'Training (augmented)': '#B3D1E7CC', 'Testing': '#F47F72CC'}
 
 	x = np.arange(len(metrics))
 	offsets = {'Training (original)': (0, 0, 0.15, 0.15, 0.15, 0), 'Training (augmented)': (0, 0, 0.15, 0.15, 0.15, 0), 'Testing': (0.3, 0.15, 0.6, 0.6, 0.6, 0.3)}
@@ -125,20 +125,20 @@ def segmentation_comparison_distribution():
 		if lab.get_text() == 'Total':
 			lab.set_fontweight('bold')
 	ax.legend()
-	ax.set_ylim([0,1580])
+	ax.set_ylim([0,1380])
 	plt.savefig('../test/segmentation/comparison_distribution.png', bbox_inches='tight', dpi=300)
 	plt.show()
 
 
 
 def classification_cross_validation_distribution():
-	metrics = ('AISD+', 'PhysioNet-ICH', 'RSNA', 'CQ500', 'Total')
-	values = {'Normal': (46, 9, 60, 41, 156), 'Ischemic': (78, 0, 0, 0, 78), 'Ischemic (augmented)': (78, 0, 0, 0, 78), 'Hemorrhagic': (0, 7, 85, 57, 149), 'Hemorrhagic (augmented)': (0, 7, 0, 0, 7)}
-	colors = {'Normal': '#7FB2D5', 'Ischemic': '#BFBCDA', 'Ischemic (augmented)': '#DAD7EA', 'Hemorrhagic': '#F47F72', 'Hemorrhagic (augmented)': '#F6B3AC'}
+	metrics = ('AISD+', 'BGD-ISD', 'PhysioNet-ICH', 'RSNA', 'CQ500', 'Total')
+	values = {'Normal': (148, 148, 46, 148, 286, 776), 'Ischemic': (345, 431, 0, 0, 0, 776), 'Ischemic (augmented)': (0, 0, 0, 0, 0, 0), 'Hemorrhagic': (0, 0, 36, 463, 205, 704), 'Hemorrhagic (augmented)': (0, 0, 72, 0, 0, 72)}
+	colors = {'Normal': '#7FB2D5CC', 'Ischemic': '#BFBCDACC', 'Ischemic (augmented)': '#DAD7EACC', 'Hemorrhagic': '#F47F72CC', 'Hemorrhagic (augmented)': '#F6B3ACCC'}
 
 	x = np.arange(len(metrics))
-	offsets = {'Normal': (0,0,0,0,-0.05), 'Ischemic': (0.3,0,0,0,0.15), 'Ischemic (augmented)': (0.3,0,0,0,0.15), 'Hemorrhagic': (0,0.3,0.3,0.3,0.35), 'Hemorrhagic (augmented)': (0,0.3,0,0,0.35)}
-	widths = {'Normal': (0.3,0.3,0.3,0.3,0.2), 'Ischemic': (0.3,0,0,0,0.2), 'Ischemic (augmented)': (0.3,0,0,0,0.2), 'Hemorrhagic': (0,0.3,0.3,0.3,0.2), 'Hemorrhagic (augmented)': (0,0.3,0,0,0.2)}
+	offsets = {'Normal': (0,0,0,0,0,-0.15), 'Ischemic': (0.3,0.3,0,0,0,0.15), 'Ischemic (augmented)': (0.3,0.3,0,0,0,0.15), 'Hemorrhagic': (0,0,0.3,0.3,0.3,0.45), 'Hemorrhagic (augmented)': (0,0,0.3,0,0,0.45)}
+	widths = {'Normal': (0.3,0.3,0.3,0.3,0.3,0.3), 'Ischemic': (0.3,0.3,0,0,0,0.3), 'Ischemic (augmented)': (0.3,0.3,0,0,0,0.3), 'Hemorrhagic': (0,0,0.3,0.3,0.3,0.3), 'Hemorrhagic (augmented)': (0,0,0.3,0,0,0.3)}
 	multiplier = 1
 
 	plt.rcParams.update({'font.size': 14})
@@ -146,7 +146,7 @@ def classification_cross_validation_distribution():
 
 	fig, ax = plt.subplots(layout='constrained', figsize=(8, 4))
 
-	bottom = np.zeros(5)
+	bottom = np.zeros(6)
 
 	for dataset, value in values.items():
 		if dataset == 'Ischemic (augmented)':
@@ -157,7 +157,7 @@ def classification_cross_validation_distribution():
 
 			labels = [values['Ischemic'][i] + values['Ischemic (augmented)'][i] if values['Ischemic (augmented)'][i] > 0 else '' for i in range(len(values['Ischemic (augmented)']))]
 			ax.bar_label(rects, labels=labels, fontsize=12)
-			bottom = np.zeros(5)
+			bottom = np.zeros(6)
 
 		elif dataset == 'Hemorrhagic (augmented)':
 			offset = [off * multiplier for off in offsets[dataset]]
@@ -167,7 +167,7 @@ def classification_cross_validation_distribution():
 
 			labels = [values['Hemorrhagic'][i] + values['Hemorrhagic (augmented)'][i] if values['Hemorrhagic (augmented)'][i] > 0 else '' for i in range(len(values['Hemorrhagic (augmented)']))]
 			ax.bar_label(rects, labels=labels, fontsize=12)
-			bottom = np.zeros(5)
+			bottom = np.zeros(6)
 
 		else:
 			offset = np.array([off * multiplier for off in offsets[dataset]])
@@ -186,7 +186,7 @@ def classification_cross_validation_distribution():
 		if lab.get_text() == 'Total':
 			lab.set_fontweight('bold')
 	ax.legend()
-
+	ax.set_ylim([0,820])
 	plt.savefig('../test/classification/cross_validation_distribution.png', bbox_inches='tight', dpi=300)
 	plt.show()
 
@@ -194,11 +194,11 @@ def classification_cross_validation_distribution():
 
 def classification_cross_validation_results():
 	metrics = ('AUC', 'Dice', 'Recall', 'Specificity')
-	values = {'AISD+': (0.9625, 0.9660, 0.9812, 0.9020), 'AIS overall': (0.9600, 0.9161, 0.8987, 0.9821), 'PhysioNet-ICH': (0.8393, 0.6154, 0.6667, 0.6667), 'RSNA': (0.9457, 0.9079, 0.9542, 0.7571), 'CQ500': (0.9481, 0.9258, 0.9077, 0.9132), 'ICH overall': (0.9319, 0.8868, 0.8226, 0.8001)}
-	colors = {'AISD+': '#88CEE6', 'AIS overall': '#E6CECF', 'PhysioNet-ICH': '#F6C8A8', 'RSNA': '#E89DA0', 'CQ500': '#B2D3A4', 'ICH overall': '#B696B6'}
+	values = {'AISD+': (0.9625, 0.9660, 0.9812, 0.9020), 'BGD-ISD': (0.9577, 0.8947, 0.8630, 0.9901), 'AIS overall': (0.9600, 0.9161, 0.8987, 0.9821), 'PhysioNet-ICH': (0.8393, 0.6154, 0.6667, 0.6667), 'RSNA': (0.9457, 0.9079, 0.9542, 0.7571), 'CQ500': (0.9481, 0.9258, 0.9077, 0.9132), 'ICH overall': (0.9319, 0.8868, 0.8226, 0.8001)}
+	colors = {'AISD+': '#88CEE6', 'BGD-ISD': '#D3D3D3', 'AIS overall': '#E6CECF', 'PhysioNet-ICH': '#F6C8A8', 'RSNA': '#E89DA0', 'CQ500': '#B2D3A4', 'ICH overall': '#B696B6'}
 
 	x = np.arange(len(metrics))
-	width = 0.125
+	width = 0.1
 	multiplier = 0
 
 	plt.rcParams.update({'font.size': 14})
@@ -218,7 +218,7 @@ def classification_cross_validation_results():
 
 	ax.legend(ncol=3)
 	ax.set_ylabel('%', rotation=0)
-	ax.set_ylim([50,125])
+	ax.set_ylim([50,140])
 	ax.yaxis.set_label_coords(0.02,0.92)
 
 	plt.savefig('../test/classification/cross_validation_results.png', bbox_inches='tight', dpi=300)
@@ -228,13 +228,13 @@ def classification_cross_validation_results():
 
 
 def classification_comparison_distribution():
-	metrics = ('AISD+', 'PhysioNet-ICH', 'RSNA', 'CQ500', 'Total')
-	values = {'Normal': (46, 9, 60, 41, 156), 'Ischemic': (78, 0, 0, 0, 78), 'Ischemic (augmented)': (78, 0, 0, 0, 78), 'Hemorrhagic': (0, 7, 85, 57, 149), 'Hemorrhagic (augmented)': (0, 7, 0, 0, 7)}
-	colors = {'Normal': '#7FB2D5', 'Ischemic': '#BFBCDA', 'Ischemic (augmented)': '#DAD7EA', 'Hemorrhagic': '#F47F72', 'Hemorrhagic (augmented)': '#F6B3AC'}
+	metrics = ('AISD', 'RSNA', 'BGD-ISD', 'CQ500')
+	values = {'Normal': (0, 1725, 450, 286), 'Ischemic': (345, 0, 431, 0), 'Ischemic (augmented)': (1380, 0, 0, 0), 'Hemorrhagic': (0, 1725, 0, 205), 'Hemorrhagic (augmented)': (0, 0, 0, 0)}
+	colors = {'Normal': '#7FB2D5CC', 'Ischemic': '#BFBCDACC', 'Ischemic (augmented)': '#DAD7EACC', 'Hemorrhagic': '#F47F72CC', 'Hemorrhagic (augmented)': '#F6B3ACCC'}
 
 	x = np.arange(len(metrics))
-	offsets = {'Normal': (0,0,0,0,-0.05), 'Ischemic': (0.3,0,0,0,0.15), 'Ischemic (augmented)': (0.3,0,0,0,0.15), 'Hemorrhagic': (0,0.3,0.3,0.3,0.35), 'Hemorrhagic (augmented)': (0,0.3,0,0,0.35)}
-	widths = {'Normal': (0.3,0.3,0.3,0.3,0.2), 'Ischemic': (0.3,0,0,0,0.2), 'Ischemic (augmented)': (0.3,0,0,0,0.2), 'Hemorrhagic': (0,0.3,0.3,0.3,0.2), 'Hemorrhagic (augmented)': (0,0.3,0,0,0.2)}
+	offsets = {'Normal': (0,0,0,0), 'Ischemic': (0.15,0,0.3,0), 'Ischemic (augmented)': (0.15,0,0.3,0), 'Hemorrhagic': (0,0.3,0.3,0.3), 'Hemorrhagic (augmented)': (0,0.3,0,0)}
+	widths = {'Normal': (0,0.3,0.3,0.3), 'Ischemic': (0.3,0,0.3,0), 'Ischemic (augmented)': (0.3,0,0,0), 'Hemorrhagic': (0,0.3,0,0.3), 'Hemorrhagic (augmented)': (0,0,0,0)}
 	multiplier = 1
 
 	plt.rcParams.update({'font.size': 14})
@@ -242,7 +242,7 @@ def classification_comparison_distribution():
 
 	fig, ax = plt.subplots(layout='constrained', figsize=(8, 4.8))
 
-	bottom = np.zeros(5)
+	bottom = np.zeros(4)
 
 	for dataset, value in values.items():
 		if dataset == 'Ischemic (augmented)':
@@ -253,7 +253,7 @@ def classification_comparison_distribution():
 
 			labels = [values['Ischemic'][i] + values['Ischemic (augmented)'][i] if values['Ischemic (augmented)'][i] > 0 else '' for i in range(len(values['Ischemic (augmented)']))]
 			ax.bar_label(rects, labels=labels, fontsize=12)
-			bottom = np.zeros(5)
+			bottom = np.zeros(4)
 
 		elif dataset == 'Hemorrhagic (augmented)':
 			offset = [off * multiplier for off in offsets[dataset]]
@@ -263,7 +263,7 @@ def classification_comparison_distribution():
 
 			labels = [values['Hemorrhagic'][i] + values['Hemorrhagic (augmented)'][i] if values['Hemorrhagic (augmented)'][i] > 0 else '' for i in range(len(values['Hemorrhagic (augmented)']))]
 			ax.bar_label(rects, labels=labels, fontsize=12)
-			bottom = np.zeros(5)
+			bottom = np.zeros(4)
 
 		else:
 			offset = np.array([off * multiplier for off in offsets[dataset]])
@@ -279,11 +279,12 @@ def classification_comparison_distribution():
 	ax.set_xticks(x + 0.5*0.3, metrics)
 
 	for lab in ax.get_xticklabels():
-		if lab.get_text() == 'Total':
+		if lab.get_text() == 'BGD-ISD' or lab.get_text() == 'CQ500':
 			lab.set_fontweight('bold')
 	ax.legend()
+	ax.set_ylim([0,1800])
 
-	plt.savefig('../test/classification/cross_validation_distribution.png', bbox_inches='tight', dpi=300)
+	plt.savefig('../test/classification/comparison_distribution.png', bbox_inches='tight', dpi=300)
 	plt.show()
 
 
